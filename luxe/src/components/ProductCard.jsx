@@ -1,57 +1,66 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Eye } from 'lucide-react';
+import { ShoppingCart, Eye, Heart } from 'lucide-react';
 import { useCart } from '../lib/CartContext';
+import { useWishlist } from '../lib/WishlistContext';
 import { toast } from "sonner";
 import { ImageWithFallback } from "./ImageWithFallback";
 
 export function ProductCard({ product }) {
   const [isHovered, setIsHovered] = useState(false);
   const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const navigate = useNavigate();
+  const wish = isInWishlist(product.id);
 
-  const handleQuickAdd = (e) => {
+  if (!product || !product.images) {
+    return null;
+  }
+  
+
+
+  const handleQuickAdd = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const firstVariant = product.variants[0];
-    addToCart({
-      productId: product.id,
-      productName: product.name,
-      productImage: product.images[0],
-      variantId: firstVariant.id,
-      variantColor: firstVariant.color,
-      quantity: 1,
-      price: product.price,
-    });
-
-    toast.success('Added to cart', {
-      description: `${product.name} - ${firstVariant.color}`,
-    });
+    try {
+      await addToCart(Number(product.id), 1);
+      toast.success('Added to cart', {
+        description: product.name,
+      });
+    } catch (err) {
+      toast.error('Failed to add to cart');
+    }
   };
 
-  const handleBuyNow = (e) => {
+  const handleBuyNow = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const firstVariant = product.variants[0];
-    addToCart({
-      productId: product.id,
-      productName: product.name,
-      productImage: product.images[0],
-      variantId: firstVariant.id,
-      variantColor: firstVariant.color,
-      quantity: 1,
-      price: product.price,
-    });
-
-    navigate('/checkout');
+    try {
+      await addToCart(Number(product.id), 1);
+      navigate('/checkout');
+    } catch (err) {
+      toast.error('Failed to add to cart');
+    }
   };
 
   const handleQuickView = (e) => {
     e.preventDefault();
     e.stopPropagation();
     navigate(`/product/${product.id}`);
+  };
+
+  const toggleWishlist = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (wish) {
+      removeFromWishlist(product.id);
+      toast.success('Removed from wishlist');
+    } else {
+      addToWishlist(product.id);
+      toast.success('Added to wishlist');
+    }
   };
 
   return (
@@ -64,10 +73,19 @@ export function ProductCard({ product }) {
       {/* Image Container */}
       <div className="relative aspect-square bg-gray-100 overflow-hidden mb-3 rounded-sm">
         <ImageWithFallback
-          src={product.images[0]}
+          src={product.images?.[0] || ''}
           alt={product.name}
           className={`w-full h-full object-cover transition-transform duration-700 ease-out ${isHovered ? 'scale-105' : 'scale-100'}`}
         />
+
+        {/* Wishlist Button - Top Left */}
+        <button
+          onClick={toggleWishlist}
+          className="absolute top-3 left-3 bg-white p-2.5 rounded-full shadow-md hover:bg-black hover:text-white transition-colors z-10"
+          aria-label="Add to wishlist"
+        >
+          <Heart className={`w-4 h-4 ${wish ? 'fill-black text-black' : 'text-black'}`} />
+        </button>
 
         {/* Hover Actions Overlay - Top Right */}
         <div
@@ -116,19 +134,7 @@ export function ProductCard({ product }) {
             <p className="text-sm font-medium text-black">${product.price}</p>
         </div>
        
-        {/* Variant Colors - Reserved height prevents jumping */}
-        <div className="h-5">
-           <div className={`flex items-center gap-2 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-              {product.variants.map(variant => (
-              <div
-                  key={variant.id}
-                  className="w-3 h-3 rounded-full border border-gray-200 shadow-sm"
-                  style={{ backgroundColor: variant.colorHex }}
-                  title={variant.color}
-              />
-              ))}
-           </div>
-        </div>
+
       </div>
     </div>
   );

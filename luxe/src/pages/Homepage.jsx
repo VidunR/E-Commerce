@@ -7,8 +7,6 @@ import { ImageWithFallback } from "../components/ImageWithFallback.jsx";
 
 export function Homepage() {
   const featuredProducts = mockProducts.slice(0, 4);
-  
-  // Spotlight State
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   const handleMouseMove = (e) => {
@@ -18,12 +16,10 @@ export function Homepage() {
 
   return (
     <div className="min-h-screen">
-      {/* --- NEW SPOTLIGHT HERO SECTION --- */}
       <section 
         onMouseMove={handleMouseMove}
         className="relative h-[85vh] bg-black flex items-center justify-center overflow-hidden cursor-default group"
       >
-        {/* 1. Background Image (Dimmed) */}
         <div className="absolute inset-0 opacity-40 transition-opacity duration-500 group-hover:opacity-30">
           <ImageWithFallback
             src="public\products\wallet6.jpg"
@@ -32,7 +28,6 @@ export function Homepage() {
           />
         </div>
 
-        {/* 2. The Spotlight Effect Layer */}
         <div 
           className="absolute inset-0 pointer-events-none mix-blend-overlay transition-opacity duration-300 opacity-0 group-hover:opacity-100"
           style={{
@@ -40,7 +35,6 @@ export function Homepage() {
           }}
         />
 
-        {/* 3. Content */}
         <div className="relative z-10 text-center text-white px-4 max-w-4xl">
           <h1 className="mb-6 text-5xl md:text-7xl font-bold tracking-tighter bg-clip-text text-transparent bg-linear-to-b from-white to-white/60">
             Crafted for Minimalists
@@ -58,7 +52,6 @@ export function Homepage() {
         </div>
       </section>
 
-      {/* Trust Badges */}
       <section className="border-b border-black/5 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
@@ -87,7 +80,6 @@ export function Homepage() {
         </div>
       </section>
 
-      {/* Featured Products */}
       <section className="bg-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -112,7 +104,6 @@ export function Homepage() {
         </div>
       </section>
 
-      {/* Secondary Banner */}
       <section className="bg-[#111] text-white py-24 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">

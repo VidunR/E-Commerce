@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Minus, Plus, Share2, Truck, Package } from 'lucide-react';
-import { mockProducts } from '../lib/mockData';
 import { useCart } from '../lib/CartContext';
+import { useAuth } from '../lib/AuthContext';
 import { toast } from "sonner";
-import { motion } from "framer-motion"; // IMPORTED FOR ANIMATION
-
+import { motion } from "framer-motion";
 import { ImageWithFallback } from "../components/ImageWithFallback.jsx";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
 
@@ -13,60 +12,112 @@ export function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const product = mockProducts.find(p => p.id === id);
-
+  const { token, user } = useAuth();
+  
+  const [product, setProduct] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [selectedVariant, setSelectedVariant] = useState(
-    product?.variants[0].id || ''
-  );
   const [quantity, setQuantity] = useState(1);
+  const [reviews, setReviews] = useState([]);
+  const [avgRating, setAvgRating] = useState(0);
+  const [userReview, setUserReview] = useState(null);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [recommended, setRecommended] = useState([]);
 
-  if (!product) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="mb-4">Product not found</h2>
-          <button
-            onClick={() => navigate('/products')}
-            className="px-6 py-2 bg-black text-white hover:bg-black/90 transition-minimal"
-          >
-            Back to Products
-          </button>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    const loadProduct = async () => {
+      try {
+        const res = await fetch(`/api/products/${id}`);
+        const data = await res.json();
+        if (!data.product) return;
 
-  const selectedVariantData = product.variants.find(v => v.id === selectedVariant);
+        const processed = {
+          ...data.product,
+          inStock: data.product.inventory?.stockCount > 0,
+          images: data.product.images?.map(i => {
+            const url = i?.url || i || '';
+            if (!url || typeof url !== 'string') return '';
+            if (url.startsWith('http')) return url;
+            return url.startsWith('/') ? url : `/${url}`;
+          }).filter(Boolean) || []
+        };
 
-  const nextImage = () => {
-    setCurrentImageIndex((prev) =>
-      prev === product.images.length - 1 ? 0 : prev + 1
-    );
+        setProduct(processed);
+      } catch (err) {
+        console.error('Failed to load product:', err);
+      }
+    };
+
+    const loadRecommended = async () => {
+      try {
+        const res = await fetch(`/api/recommendations/${id}`);
+        const data = await res.json();
+        setRecommended(data.recommendations || []);
+      } catch (err) {
+        console.error('Failed to load recommendations:', err);
+      }
+    };
+
+    loadProduct();
+    loadRecommended();
+  }, [id]);
+
+  useEffect(() => {
+    const loadReviews = async () => {
+      try {
+        const res = await fetch(`/api/reviews/${id}`);
+        const data = await res.json();
+        setReviews(data.reviews || []);
+        setAvgRating(data.avgRating || 0);
+
+        const userReviewData = data.reviews?.find(r => r.userId === user?.id);
+        if (userReviewData) {
+          setUserReview(userReviewData);
+          setRating(userReviewData.rating);
+          setComment(userReviewData.comment || '');
+        }
+      } catch (err) {
+        console.error('Failed to load reviews:', err);
+      }
+    };
+
+    if (user) loadReviews();
+  }, [id, user]);
+
+  const handleSubmitReview = async () => {
+    try {
+      const res = await fetch(`/api/reviews/${id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ rating, comment })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.message || 'Failed to submit review');
+        return;
+      }
+
+      toast.success('Review submitted successfully');
+      setUserReview(data.review);
+      setReviews(prev => [data.review, ...prev.filter(r => r.userId !== data.review.userId)]);
+    } catch (err) {
+      toast.error('Failed to submit review');
+    }
   };
 
-  const prevImage = () => {
-    setCurrentImageIndex((prev) =>
-      prev === 0 ? product.images.length - 1 : prev - 1
-    );
-  };
-
-  const handleAddToCart = () => {
-    if (!selectedVariantData) return;
-
-    addToCart({
-      productId: product.id,
-      productName: product.name,
-      productImage: product.images[0],
-      variantId: selectedVariant,
-      variantColor: selectedVariantData.color,
-      quantity,
-      price: product.price,
-    });
-
-    toast.success('Added to cart', {
-      description: `${product.name} - ${selectedVariantData.color} (${quantity})`,
-    });
+  const handleAddToCart = async () => {
+    try {
+      await addToCart(Number(product.id), quantity);
+      toast.success('Added to cart', {
+        description: `${product.name} (${quantity})`
+      });
+    } catch (err) {
+      toast.error('Failed to add to cart');
+    }
   };
 
   const handleBuyNow = () => {
@@ -79,17 +130,27 @@ export function ProductDetail() {
     toast.success('Link copied to clipboard');
   };
 
+  const nextImage = () => {
+    setCurrentImageIndex(prev => prev === product.images.length - 1 ? 0 : prev + 1);
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex(prev => prev === 0 ? product.images.length - 1 : prev - 1);
+  };
+
+  if (!product) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-16">
           
-          {/* --- IMAGE CAROUSEL (Wrapped in Motion) --- */}
           <div className="space-y-4 sticky top-24 h-fit">
             <motion.div 
-                // This layoutId connects to the ProductCard image for smooth morphing
-                layoutId={`product-image-${product.id}`}
-                className="relative aspect-square bg-[#f5f5f5] overflow-hidden group rounded-sm"
+              layoutId={`product-image-${product.id}`}
+              className="relative aspect-square bg-[#f5f5f5] overflow-hidden group rounded-sm"
             >
               <ImageWithFallback
                 src={product.images[currentImageIndex]}
@@ -117,7 +178,6 @@ export function ProductDetail() {
               )}
             </motion.div>
 
-            {/* Thumbnail Images */}
             {product.images.length > 1 && (
               <div className="grid grid-cols-4 gap-3">
                 {product.images.map((image, index) => (
@@ -125,9 +185,7 @@ export function ProductDetail() {
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
                     className={`relative aspect-square bg-[#f5f5f5] overflow-hidden transition-all duration-300 ${
-                      currentImageIndex === index
-                        ? 'ring-1 ring-black ring-offset-2'
-                        : 'hover:opacity-80'
+                      currentImageIndex === index ? 'ring-1 ring-black ring-offset-2' : 'hover:opacity-80'
                     }`}
                   >
                     <ImageWithFallback
@@ -141,7 +199,6 @@ export function ProductDetail() {
             )}
           </div>
 
-          {/* Product Info */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -158,12 +215,13 @@ export function ProductDetail() {
 
             <p className="text-gray-600 leading-relaxed text-lg">{product.description}</p>
 
-            {/* Stock Status */}
             <div className="flex items-center gap-2">
               {product.inStock ? (
                 <>
                   <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse" />
-                  <span className="text-sm font-medium text-green-700">In Stock ({selectedVariantData?.stock} available)</span>
+                  <span className="text-sm font-medium text-green-700">
+                    In Stock ({product.inventory?.stockCount} available)
+                  </span>
                 </>
               ) : (
                 <>
@@ -173,28 +231,6 @@ export function ProductDetail() {
               )}
             </div>
 
-            {/* Color Variants */}
-            <div className="space-y-4">
-              <label className="text-sm font-semibold uppercase tracking-wide">Color: <span className="text-gray-500 font-normal">{selectedVariantData?.color}</span></label>
-              <div className="flex flex-wrap gap-3">
-                {product.variants.map(variant => (
-                  <button
-                    key={variant.id}
-                    onClick={() => setSelectedVariant(variant.id)}
-                    className={`w-12 h-12 rounded-full border transition-all duration-200 ${
-                      selectedVariant === variant.id
-                        ? 'border-black ring-1 ring-black ring-offset-2 scale-110'
-                        : 'border-gray-200 hover:scale-105'
-                    }`}
-                    style={{ backgroundColor: variant.colorHex }}
-                    title={variant.color}
-                    aria-label={`Select ${variant.color} color`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Quantity Selector */}
             <div className="space-y-4">
               <label className="text-sm font-semibold uppercase tracking-wide">Quantity</label>
               <div className="flex items-center gap-4">
@@ -208,7 +244,7 @@ export function ProductDetail() {
                   </button>
                   <span className="px-6 font-medium">{quantity}</span>
                   <button
-                    onClick={() => setQuantity(Math.min(selectedVariantData?.stock || 99, quantity + 1))}
+                    onClick={() => setQuantity(Math.min(product.inventory?.stockCount || 99, quantity + 1))}
                     className="p-4 hover:bg-gray-50 transition-colors"
                     aria-label="Increase quantity"
                   >
@@ -218,7 +254,6 @@ export function ProductDetail() {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex flex-col gap-3 pt-4">
               <button
                 onClick={handleAddToCart}
@@ -236,11 +271,10 @@ export function ProductDetail() {
               </button>
             </div>
 
-            {/* Shipping Info */}
             <div className="space-y-4 pt-8 border-t border-gray-100">
               <div className="flex items-start gap-4">
                 <div className="p-2 bg-gray-50 rounded-full">
-                    <Truck className="w-5 h-5 text-black" />
+                  <Truck className="w-5 h-5 text-black" />
                 </div>
                 <div>
                   <h4 className="font-medium text-sm">Free Shipping</h4>
@@ -251,7 +285,7 @@ export function ProductDetail() {
               </div>
               <div className="flex items-start gap-4">
                 <div className="p-2 bg-gray-50 rounded-full">
-                    <Package className="w-5 h-5 text-black" />
+                  <Package className="w-5 h-5 text-black" />
                 </div>
                 <div>
                   <h4 className="font-medium text-sm">Easy Returns</h4>
@@ -262,7 +296,6 @@ export function ProductDetail() {
               </div>
             </div>
 
-            {/* Share */}
             <button
               onClick={handleShare}
               className="flex items-center gap-2 text-sm text-gray-500 hover:text-black transition-colors"
@@ -271,10 +304,11 @@ export function ProductDetail() {
               Share this product
             </button>
 
-            {/* Product Details Accordion */}
             <Accordion type="single" collapsible className="border-t border-gray-100 mt-4">
               <AccordionItem value="details">
-                <AccordionTrigger className="text-sm font-medium uppercase tracking-wider">Product Details</AccordionTrigger>
+                <AccordionTrigger className="text-sm font-medium uppercase tracking-wider">
+                  Product Details
+                </AccordionTrigger>
                 <AccordionContent>
                   <ul className="space-y-2 text-sm text-gray-600 list-disc pl-4">
                     <li>Premium Italian leather</li>
@@ -286,7 +320,9 @@ export function ProductDetail() {
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="care">
-                <AccordionTrigger className="text-sm font-medium uppercase tracking-wider">Care Instructions</AccordionTrigger>
+                <AccordionTrigger className="text-sm font-medium uppercase tracking-wider">
+                  Care Instructions
+                </AccordionTrigger>
                 <AccordionContent>
                   <p className="text-sm text-gray-600 leading-relaxed">
                     Clean with a soft, dry cloth. Avoid exposure to water and direct sunlight.
@@ -295,7 +331,9 @@ export function ProductDetail() {
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="shipping">
-                <AccordionTrigger className="text-sm font-medium uppercase tracking-wider">Shipping & Returns</AccordionTrigger>
+                <AccordionTrigger className="text-sm font-medium uppercase tracking-wider">
+                  Shipping & Returns
+                </AccordionTrigger>
                 <AccordionContent>
                   <p className="text-sm text-gray-600 leading-relaxed">
                     Free standard shipping on orders over $200. Express shipping available.
@@ -304,7 +342,103 @@ export function ProductDetail() {
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
+
+            <div className="mt-12 pt-8 border-t border-gray-100">
+              <h3 className="text-2xl font-bold mb-6">Customer Reviews</h3>
+              
+              {avgRating > 0 && (
+                <div className="mb-6 flex items-center gap-2">
+                  <span className="text-yellow-500 text-2xl">
+                    {"★".repeat(Math.round(avgRating))}{"☆".repeat(5 - Math.round(avgRating))}
+                  </span>
+                  <span className="text-lg font-medium">{avgRating} / 5</span>
+                  <span className="text-sm text-gray-500">({reviews.length} reviews)</span>
+                </div>
+              )}
+
+              {token ? (
+                <div className="mb-8 p-6 border rounded-lg bg-gray-50">
+                  <h4 className="font-medium mb-4">
+                    {userReview ? 'Edit your review' : 'Write a review'}
+                  </h4>
+
+                  <div className="flex gap-1 mb-4">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button
+                        key={star}
+                        onClick={() => setRating(star)}
+                        className={`text-3xl ${star <= rating ? 'text-yellow-500' : 'text-gray-300'} hover:scale-110 transition`}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+
+                  <textarea
+                    className="w-full border p-3 rounded mb-4 min-h-[100px]"
+                    placeholder="Share your experience with this product..."
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                  />
+
+                  <button
+                    onClick={handleSubmitReview}
+                    className="px-6 py-3 bg-black text-white rounded hover:bg-gray-900 transition"
+                  >
+                    {userReview ? 'Update Review' : 'Submit Review'}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 mb-8">
+                  <a href="/login" className="underline">Login</a> to write a review.
+                </p>
+              )}
+
+              <div className="space-y-4">
+                {reviews.map(r => (
+                  <div key={r.id} className="border p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-medium">{r.user?.name || 'User'}</div>
+                      <div className="text-yellow-500">
+                        {"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}
+                      </div>
+                    </div>
+                    {r.comment && <p className="text-sm text-gray-600">{r.comment}</p>}
+                    <p className="text-xs text-gray-400 mt-2">
+                      {new Date(r.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </motion.div>
+        </div>
+
+        <div className="mt-16">
+          <h2 className="text-2xl font-semibold mb-6">You May Also Like</h2>
+          {recommended.length === 0 ? (
+            <p className="text-gray-500">No related products found.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {recommended.map(item => (
+                <div
+                  key={item.id}
+                  className="cursor-pointer group"
+                  onClick={() => navigate(`/product/${item.id}`)}
+                >
+                  <div className="aspect-square bg-gray-100 overflow-hidden rounded">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition"
+                    />
+                  </div>
+                  <h3 className="mt-3 text-sm font-medium">{item.name}</h3>
+                  <p className="text-sm text-gray-600">${item.price}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

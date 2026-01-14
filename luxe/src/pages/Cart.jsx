@@ -25,7 +25,7 @@ export function Cart() {
           </div>
           <Link
             to="/products"
-            className="inline-block px-8 py-3 bg-black text-white hover:bg-black/90 transition-minimal"
+            className="inline-block px-8 py-3 bg-black text-white hover:bg-black/90 transition"
           >
             Continue Shopping
           </Link>
@@ -40,12 +40,11 @@ export function Cart() {
         <h1 className="mb-8">Shopping Cart</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
             {cart.map(item => (
               <div
                 key={item.id}
-                className="flex gap-4 p-4 border border-black/10 hover:border-black/20 transition-minimal"
+                className="flex gap-4 p-4 border border-black/10 hover:border-black/20 transition"
               >
                 <Link
                   to={`/product/${item.productId}`}
@@ -66,16 +65,18 @@ export function Cart() {
                     >
                       <h4>{item.productName}</h4>
                     </Link>
-                    <p className="text-[13px] text-[#aaaaaa]">
-                      Color: {item.variantColor}
-                    </p>
+                    {item.variantColor && (
+                      <p className="text-[13px] text-[#aaaaaa]">
+                        Color: {item.variantColor}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center border border-black/10">
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="p-2 hover:bg-black hover:text-white transition-minimal"
+                        className="p-2 hover:bg-black hover:text-white transition"
                         aria-label="Decrease quantity"
                       >
                         <Minus className="w-3 h-3" />
@@ -83,7 +84,7 @@ export function Cart() {
                       <span className="px-4 text-[13px]">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="p-2 hover:bg-black hover:text-white transition-minimal"
+                        className="p-2 hover:bg-black hover:text-white transition"
                         aria-label="Increase quantity"
                       >
                         <Plus className="w-3 h-3" />
@@ -96,7 +97,7 @@ export function Cart() {
 
                 <button
                   onClick={() => removeFromCart(item.id)}
-                  className="p-2 h-fit hover:text-red-600 transition-minimal"
+                  className="p-2 h-fit hover:text-red-600 transition"
                   aria-label="Remove item"
                 >
                   <Trash2 className="w-5 h-5" />
@@ -105,7 +106,6 @@ export function Cart() {
             ))}
           </div>
 
-          {/* Cart Summary */}
           <div className="lg:col-span-1">
             <div className="border border-black/10 p-6 space-y-6 sticky top-20">
               <h3>Order Summary</h3>
@@ -140,7 +140,7 @@ export function Cart() {
 
               <button
                 onClick={() => navigate('/checkout')}
-                className="w-full py-4 bg-black text-white hover:bg-black/90 transition-minimal"
+                className="w-full py-4 bg-black text-white hover:bg-black/90 transition"
               >
                 Proceed to Checkout
               </button>

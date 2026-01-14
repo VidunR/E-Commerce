@@ -4,6 +4,7 @@ import { Toaster } from './components/ui/sonner';
 import { CartProvider } from './lib/CartContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
+import ProtectedRoute from "./components/ProtectedRoute";
 import { Homepage } from './pages/Homepage';
 import { ProductListing } from './pages/ProductListing';
 import { ProductDetail } from './pages/ProductDetail';
@@ -12,12 +13,21 @@ import { Checkout } from './pages/Checkout';
 import { OrderConfirmation } from './pages/OrderConfirmation';
 import { Login, Register } from './pages/Auth';
 import { Profile } from './pages/Profile';
-import { AdminDashboard } from './pages/AdminDashboard';
 import { NotFound } from './pages/NotFound';
 import { SearchPage } from './pages/SearchPage';
+import { SearchResults } from './pages/SearchResults';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import { GoogleSuccess } from './pages/GoogleSuccess';
+import { Wishlist } from './pages/Wishlist';
+import AdminProtectedRoute from './components/AdminProtectedRoute';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminProducts from './pages/admin/Products';
+import AdminOrders from './pages/admin/AdminOrders';
 
 
 import Lenis from 'lenis';
+
 
 export default function App() {
   // 1. Initialize Smooth Scrolling (Lenis)
@@ -53,9 +63,15 @@ export default function App() {
               <Route path="/order-confirmation/:orderNumber" element={<OrderConfirmation />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/search" element={<SearchPage />} />
+              <Route path="/google-success" element={<GoogleSuccess />} />
+              <Route path="/wishlist" element={<Wishlist />} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/admin" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+              <Route path="/admin/products" element={<AdminProtectedRoute><AdminProducts /></AdminProtectedRoute>} />
+              <Route path="/admin/orders" element={<AdminProtectedRoute><AdminOrders /></AdminProtectedRoute>} />
+              <Route path="/search" element={<SearchResults />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>

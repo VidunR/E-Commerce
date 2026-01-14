@@ -1,95 +1,84 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, ChevronDown } from 'lucide-react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
 import { ProductGridSkeleton } from '../components/LoadingSkeleton';
-import { mockProducts, categories } from '../lib/mockData';
-import { Input } from '../components/ui/input';
+import { categories } from '../lib/mockData';
 import { Slider } from '../components/ui/slider';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function ProductListing() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [filteredProducts, setFilteredProducts] = useState(mockProducts);
-  
-  // UI States
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
-
-  // Filter States
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(
-    searchParams.get('category') || 'all'
-  );
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
   const [priceRange, setPriceRange] = useState([0, 500]);
-  const [selectedColors, setSelectedColors] = useState([]);
 
-  // Simulate loading
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/products");
+        const data = await res.json();
+
+        const processed = (data.products || []).map(p => ({
+          ...p,
+          inStock: p.inventory?.stockCount > 0,
+          images: p.images || []
+        }));
+
+        setProducts(processed);
+        setFilteredProducts(processed);
+      } catch (err) {
+        console.error("Failed to load products:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProducts();
+  }, []);
+
   useEffect(() => {
     setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 800);
+    const timer = setTimeout(() => setLoading(false), 300);
     return () => clearTimeout(timer);
-  }, [selectedCategory, selectedColors, priceRange, searchQuery]);
+  }, [selectedCategory, priceRange, searchQuery]);
 
-  // Filter Logic
   useEffect(() => {
-    let filtered = mockProducts;
+    let filtered = products;
 
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(p => p.category === selectedCategory);
     }
 
     if (searchQuery) {
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.description.toLowerCase().includes(searchQuery.toLowerCase())
+        p.name.toLowerCase().includes(query) ||
+        p.description.toLowerCase().includes(query)
       );
     }
 
-    filtered = filtered.filter(
-      p => p.price >= priceRange[0] && p.price <= priceRange[1]
-    );
-
-    if (selectedColors.length > 0) {
-      filtered = filtered.filter(p =>
-        p.variants.some(v => selectedColors.includes(v.color))
-      );
-    }
+    filtered = filtered.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
 
     setFilteredProducts(filtered);
-  }, [selectedCategory, searchQuery, priceRange, selectedColors]);
-
-  const availableColors = [
-    { name: 'Black', hex: '#000000' },
-    { name: 'Brown', hex: '#5D4037' },
-    { name: 'Navy', hex: '#1a1a2e' },
-    { name: 'Gray', hex: '#808080' },
-    { name: 'Tan', hex: '#d2b48c' },
-    { name: 'Cognac', hex: '#8b4513' },
-  ];
-
-  const toggleColor = (color) => {
-    setSelectedColors(prev =>
-      prev.includes(color)
-        ? prev.filter(c => c !== color)
-        : [...prev, color]
-    );
-  };
+  }, [selectedCategory, searchQuery, priceRange, products]);
 
   const clearAllFilters = () => {
     setSearchQuery('');
     setSelectedCategory('all');
-    setSelectedColors([]);
     setPriceRange([0, 500]);
   };
 
-  const hasActiveFilters = selectedColors.length > 0 || selectedCategory !== 'all' || priceRange[0] > 0 || priceRange[1] < 500;
+  const hasActiveFilters = selectedCategory !== 'all' || priceRange[0] > 0 || priceRange[1] < 500;
 
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         
-        {/* --- TOP HEADER & CONTROLS --- */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
           <div>
             <h1 className="text-3xl font-bold tracking-tight mb-1">Collection</h1>
@@ -99,7 +88,6 @@ export function ProductListing() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-            {/* Search Bar */}
             <div className="relative w-full md:w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -111,7 +99,6 @@ export function ProductListing() {
               />
             </div>
 
-            {/* Filter Toggle Button */}
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center justify-center gap-2 px-6 py-2.5 rounded-full border text-sm font-medium transition-all duration-300 ${
@@ -129,7 +116,6 @@ export function ProductListing() {
           </div>
         </div>
 
-        {/* --- COLLAPSIBLE FILTER PANEL --- */}
         <AnimatePresence>
           {showFilters && (
             <motion.div
@@ -140,13 +126,11 @@ export function ProductListing() {
               className="overflow-hidden"
             >
               <div className="bg-gray-50/50 rounded-xl p-6 mb-10 border border-gray-100">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   
-                  {/* Category Filter - FIXED DUPLICATION */}
                   <div className="space-y-3">
                     <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Category</label>
                     <div className="flex flex-wrap gap-2">
-                      {/* Manual "All" Button */}
                       <button
                          onClick={() => setSelectedCategory('all')}
                          className={`px-4 py-2 text-sm rounded-md transition-all ${
@@ -156,9 +140,8 @@ export function ProductListing() {
                         All
                       </button>
                       
-                      {/* Mapped Categories (Filtering out 'all' to prevent duplicates) */}
                       {categories
-                        .filter(cat => cat.value !== 'all' && cat.value !== 'all-products') // Ensures no duplicate "All" from data
+                        .filter(cat => cat.value !== 'all' && cat.value !== 'all-products')
                         .map(cat => (
                         <button
                           key={cat.value}
@@ -173,32 +156,6 @@ export function ProductListing() {
                     </div>
                   </div>
 
-                  {/* Color Filter */}
-                  <div className="space-y-3">
-                    <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Color</label>
-                    <div className="flex flex-wrap gap-3">
-                      {availableColors.map(color => (
-                        <button
-                          key={color.name}
-                          onClick={() => toggleColor(color.name)}
-                          className={`w-8 h-8 rounded-full transition-transform duration-200 flex items-center justify-center ${
-                            selectedColors.includes(color.name)
-                              ? 'ring-2 ring-black ring-offset-2 scale-110'
-                              : 'hover:scale-110 ring-1 ring-black/5'
-                          }`}
-                          style={{ backgroundColor: color.hex }}
-                          title={color.name}
-                          aria-label={`Filter by ${color.name}`}
-                        >
-                           {selectedColors.includes(color.name) && (
-                             <div className="w-1.5 h-1.5 bg-white rounded-full shadow-sm" />
-                           )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Price Slider */}
                   <div className="space-y-4">
                     <div className="flex justify-between">
                         <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Price Range</label>
@@ -214,7 +171,6 @@ export function ProductListing() {
                   </div>
                 </div>
 
-                {/* Clear Filters Link */}
                 <div className="mt-6 pt-6 border-t border-gray-200 flex justify-end">
                     <button 
                         onClick={clearAllFilters}
@@ -228,7 +184,6 @@ export function ProductListing() {
           )}
         </AnimatePresence>
 
-        {/* --- ACTIVE FILTER CHIPS --- */}
         {hasActiveFilters && !showFilters && (
            <div className="flex flex-wrap gap-2 mb-8">
               {selectedCategory !== 'all' && (
@@ -237,12 +192,6 @@ export function ProductListing() {
                   <button onClick={() => setSelectedCategory('all')}><X className="w-3 h-3 ml-1 hover:text-black" /></button>
                 </span>
               )}
-              {selectedColors.map(color => (
-                <span key={color} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-800">
-                  {color}
-                   <button onClick={() => toggleColor(color)}><X className="w-3 h-3 ml-1 hover:text-black" /></button>
-                </span>
-              ))}
                {(priceRange[0] > 0 || priceRange[1] < 500) && (
                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-800">
                    ${priceRange[0]} - ${priceRange[1]}
@@ -255,7 +204,6 @@ export function ProductListing() {
            </div>
         )}
 
-        {/* --- PRODUCT GRID --- */}
         {loading ? (
           <ProductGridSkeleton count={8} />
         ) : filteredProducts.length > 0 ? (
