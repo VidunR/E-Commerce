@@ -73,7 +73,7 @@ export function ProductCard({ product }) {
       {/* Image Container */}
       <div className="relative aspect-square bg-gray-100 overflow-hidden mb-3 rounded-sm">
         <ImageWithFallback
-          src={product.images?.[0] || ''}
+          src={product.images?.[0]?.url || ''}
           alt={product.name}
           className={`w-full h-full object-cover transition-transform duration-700 ease-out ${isHovered ? 'scale-105' : 'scale-100'}`}
         />

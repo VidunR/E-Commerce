@@ -12,14 +12,7 @@ router.get('/', async (req, res) => {
 
   const normalized = products.map(p => ({
     ...p,
-    images: p.images.map(img => {
-      let imgUrl = img.url;
-
-      // normalize: remove leading "products/" if exists
-      imgUrl = imgUrl.replace(/^products\//, "");
-
-      return `/products/${imgUrl}`;
-    })
+    images: p.images.map(img => ({ url: img.url }))
   }));
 
   res.json({ products: normalized });
@@ -38,10 +31,7 @@ router.get('/:id', async (req, res) => {
 
   const normalized = {
     ...product,
-    images: product.images.map(img => {
-      let imgUrl = img.url.replace(/^products\//, "");
-      return `/products/${imgUrl}`;
-    })
+    images: product.images.map(img => ({ url: img.url }))
   };
 
   res.json({ product: normalized });

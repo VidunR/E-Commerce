@@ -17,8 +17,9 @@ export const getAllProducts = async (req, res) => {
       name: p.name,
       description: p.description,
       price: p.price,
-      images: p.images.map(img => img.url),
-      variants: [],       // you don't have variants table in DB
+      images: p.images,
+      inventory: p.inventory,
+      variants: [],
       inStock: p.inventory?.stockCount > 0,
       stock: p.inventory?.stockCount || 0
     }));

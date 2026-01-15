@@ -53,7 +53,7 @@ export default function AdminProducts() {
 
                 <td className="p-4">
                   <img
-                    src={p.images?.[0]?.url ? `/${p.images[0].url}` : '/products/placeholder.png'}
+                    src={p.images?.[0]?.url || '/products/placeholder.png'}
                     alt={p.name}
                     className="w-14 h-14 object-cover rounded"
                   />
